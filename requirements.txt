@@ -4,4 +4,4 @@ numpy
 pandas
 matplotlib
 folium
-geopy.geocoders
+geopy
