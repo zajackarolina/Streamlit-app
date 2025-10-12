@@ -3,5 +3,5 @@ requests
 numpy
 pandas
 matplotlib
-random
+folium
 geopy.geocoders
