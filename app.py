@@ -26,49 +26,65 @@ places = [
     "Kazimierz, Kraków",
     "Kopiec Kościuszki, Kraków",
     "Kościół św. Anny, Kraków",
-    "Kopiec Krakusa, Kraków",
-    "Kopiec Józefa Piłsudskiego, Kraków",
     "Sukiennice, Kraków",
     "Plac Wolnica, Kraków",
     "Rynek Podgórski, Kraków",
     "Wieża Ratuszowa, Kraków",
-    "Planty, Kraków",
     "Kościół św. Wojciecha, Kraków",
     "Collegium Maius, Kraków",
     "Brama Floriańska, Kraków",
     "Smok Wawelski, Kraków",
-    "Kościół Na Skałce, Kraków",
-    "Bazylika Bożego Ciała, Kraków",
-    "Plac Nowy, Kraków",
     "Szeroka, Kraków",
     "Józefa 12, Kraków",
     "Stary cmentarz żydowski, Kraków",
     "Kładka Ojca Bernatka, Kraków",
     "Rynek Podgórski, Kraków",
     "Kościół św. Józefa, Kraków",
-    "Fort Benedykt, Kraków",
-    "Fabryka Emalia Oskara Schindlera, Kraków",
     "Plac Bohaterów Getta, Kraków",
     "Apteka Pod Orłem, Kraków",
-    "Nadwiślańska, Kraków",
-    "Park Bednarskiego, Kraków",
     "Plac Matejki, Kraków",
     "Stary Kleparz, Kraków",
-    "Klasztor Kamedułów na Bielanach, Kraków",
     "Ogród Botaniczny Uniwersytetu Jagiellońskiego, Kraków",
     "Zakrzówek, Kraków",
-    "Kopiec Wandy, Kraków",
-    "Kościół św. Piotra i Pawła, Kraków",
-    "Kościół pw. Najświętszej Maryi Panny Królowej Polski, Kraków",
-    "Plac Centralny, Nowa Huta, Kraków",
-    "Opactwo Cystersów w Mogile, Kraków",
     "Park Jordana, Kraków",
-    "SANKTUARIUM BOŻEGO MIŁOSIERDZIA, Kraków",
-
-    "Park Krakowski, Kraków"
-    
+    "Fort Benedykt, Kraków",
+    "Fabryka Emalia Oskara Schindlera, Kraków",
+    "Nadwiślańska, Kraków"
     
 ]
+
+visit_times = {
+    "Wawel, Kraków": 120,
+    "Kościół Mariacki, Kraków": 40,
+    "Barbakan, Kraków": 10,
+    "Kazimierz, Kraków": 30,
+    "Kopiec Kościuszki, Kraków": 90,
+    "Kościół św. Anny, Kraków": 10,
+    "Sukiennice, Kraków": 30,
+    "Plac Wolnica, Kraków": 10,
+    "Rynek Podgórski, Kraków": 20,
+    "Wieża Ratuszowa, Kraków": 20,
+    "Kościół św. Wojciecha, Kraków": 10,
+    "Collegium Maius, Kraków": 30,
+    "Brama Floriańska, Kraków": 10,
+    "Smok Wawelski, Kraków": 10,
+    "Szeroka, Kraków": 20,
+    "Józefa 12, Kraków": 10,
+    "Stary cmentarz żydowski, Kraków": 30,
+    "Kładka Ojca Bernatka, Kraków": 15,
+    "Kościół św. Józefa, Kraków": 10,
+    "Plac Bohaterów Getta, Kraków": 10,
+    "Apteka Pod Orłem, Kraków": 20,
+    "Plac Matejki, Kraków": 10,
+    "Stary Kleparz, Kraków": 15,
+    "Ogród Botaniczny UJ, Kraków": 60,
+    "Zakrzówek, Kraków": 90,
+    "Park Jordana, Kraków": 40,
+    "Fort Benedykt, Kraków": 30,
+    "Fabryka Emalia Oskara Schindlera, Kraków": 90,
+    "Nadwiślańska, Kraków": 10
+}
+
 
 coords = get_coordinates_osm(places)
 print(coords)
@@ -92,6 +108,59 @@ print(durations)
 print("Liczba miejsc:", len(places))
 print("Liczba współrzędnych:", len(coords))
 
+def min_to_mmss(minutes):
+    m = int(minutes)
+    s = int(round((minutes - m) * 60))
+    return f"{m:02d}:{s:02d}"
+
+def h_to_hm(h):
+    """Konwertuje godziny dziesiętne na format HH:MM"""
+    hours = int(h)
+    minutes = int(round((h - hours) * 60))
+    return f"{hours:02d}:{minutes:02d}"
+
+def build_visit_plan(best_path, places, visit_times, durations, start_hour):
+    plan = []
+    current_time = start_hour*60
+
+    for i, idx in enumerate(best_path):
+        place = places[idx]
+        visit = visit_times.get(place, 30)
+
+        if i > 0:
+            walk = durations[best_path[i-1]][idx]
+            current_time += walk
+        else:
+            walk = 0
+
+        start = current_time
+        end = start + visit
+
+        plan.append({
+            "place": place,
+            "walk_min": min_to_mmss(walk),
+            "visit_min": visit,
+            "start_h": h_to_hm(start/60),
+            "end_h": h_to_hm(end/60)
+        })
+
+        current_time = end
+    if len(best_path) > 1:
+        last_idx = best_path[-1]
+        start_idx = best_path[0]
+        walk_back = durations[last_idx][start_idx]
+        start = current_time
+        end = start + walk_back
+
+        plan.append({
+            "place": places[start_idx] + " (powrót)",
+            "walk_min": min_to_mmss(walk_back),
+            "visit_min": 0,
+            "start_h": h_to_hm(start / 60),
+            "end_h": h_to_hm(end / 60)
+        })
+
+    return plan
 
 
 def initialize_path(size, n_cities):
@@ -242,9 +311,9 @@ best_path, best_history, avg, max_history = genetic_algorithm(
     n_cities=len(places),
     mutation_rate=0.05,
     crossover_rate=0.98,
-    population_size=50,
-    generations=100,
-    selection_method="roulette",  
+    population_size=100,
+    generations=200,
+    selection_method="ranking",  
     elite_size=0.1  
 )
 print(coords[best_path[1]])
@@ -258,15 +327,16 @@ print(best_path)
 # print("Otwórz trase na mapie:", url)
 
 
+
 def generate_osrm_link(coords, best_path):
     # Ustawiamy pierwszy punkt jako centrum mapy
     center_lat, center_lon = coords[best_path[0]][1], coords[best_path[0]][0]
-    base_url = f"https://map.project-osrm.org/?z=14&center={center_lat},{center_lon}"
-
+    #base_url = f"https://map.project-osrm.org/?z=14&center={center_lat},{center_lon}"
+    base_url=f"https://www.google.com/maps/dir/"
     # Dodajemy wszystkie punkty w kolejności best_path
-    locs = "".join([f"&loc={coords[i][1]},{coords[i][0]}" for i in best_path])
-
-    return base_url + locs
+    locs = "".join([f"{coords[i][1]},{coords[i][0]}/" for i in best_path + [best_path[0]]])
+    fix="".join(f"data=!3m1!4b1!4m2!4m1!3e2")
+    return base_url + locs + fix
 
 link = generate_osrm_link(coords, best_path)
 print(link)
@@ -277,18 +347,19 @@ import folium
 import requests
 
 def create_osrm_foot_map(coords, best_path):
-    ordered_coords = [coords[i] for i in best_path]
+    # Dodajemy powrót do punktu startowego
+    ordered_coords = [coords[i] for i in best_path] + [coords[best_path[0]]]
     coord_str = ";".join([f"{c[0]},{c[1]}" for c in ordered_coords])
     
     # OSRM foot profile
     url = f"https://routing.openstreetmap.de/routed-foot/route/v1/foot/{coord_str}?overview=full&geometries=geojson"
-
     r = requests.get(url).json()
     
     geometry = r['routes'][0]['geometry']['coordinates']
     center = [ordered_coords[0][1], ordered_coords[0][0]]
     m = folium.Map(location=center, zoom_start=14)
     
+    # Rysowanie trasy
     folium.PolyLine(
         locations=[[lat, lon] for lon, lat in geometry],
         color='blue',
@@ -296,12 +367,20 @@ def create_osrm_foot_map(coords, best_path):
         opacity=0.7
     ).add_to(m)
     
+    # Dodawanie markerów z popupem
     for idx, point in enumerate(ordered_coords):
+        # Obsługa powrotu
+        if idx == len(ordered_coords) - 1:
+            popup_place = places[best_path[0]] + " (powrót)"
+        else:
+            popup_place = places[best_path[idx]]
+        
         folium.Marker(
             location=[point[1], point[0]],
-            tooltip=f"{idx+1}",
-            popup=f"{idx+1}. {places[best_path[idx]]}"
+            tooltip=f"{idx}",
+            popup=f"{idx}. {popup_place}"
         ).add_to(m)
+    
     distance_m = r['routes'][0]['distance']  # metry
     distance_km = distance_m / 1000
     duration_min = r['routes'][0]['duration'] / 60

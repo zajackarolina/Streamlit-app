@@ -1,11 +1,13 @@
 import streamlit as st
 from streamlit_folium import st_folium
 import app
-
-st.title("🗺️ Optymalna piesza trasa po zabytkach Krakowa")
+from datetime import time
+st.title("Optymalna piesza trasa po zabytkach Krakowa")
 
 selected_places = st.multiselect("Wybierz zabytki do odwiedzenia:", app.places, default=app.places)
-
+st.subheader("Wybierz godzinę rozpoczęcia zwiedzania")
+start_time = st.time_input("Godzina startu", value=time(9, 0))
+start_hour = start_time.hour + start_time.minute / 60 
 # Inicjalizacja zmiennych w session_state
 if "best_path" not in st.session_state:
     st.session_state.best_path = None
@@ -28,13 +30,16 @@ if len(selected_places) >= 2:
             best_path, best_history, avg, max_history = app.genetic_algorithm(
                 n_cities=len(selected_places),
                 mutation_rate=0.05,
-                crossover_rate=0.98,
-                population_size=50,
-                generations=100,
+                crossover_rate=0.9,
+                population_size=200,
+                generations=500,
                 selection_method="roulette",  
                 elite_size=0.1  
             )
             mapa,dist_km, time_min = app.create_osrm_foot_map(selected_coords, best_path)
+            plan=app.build_visit_plan(best_path, selected_places, app.visit_times, durations, start_hour)
+            total_visit = sum(p["visit_min"] for p in plan)
+            total_time = time_min + total_visit
             link_=app.generate_osrm_link(selected_coords, best_path)
             print(link_)
             # Zapisanie do session_state
@@ -43,11 +48,31 @@ if len(selected_places) >= 2:
             st.session_state.dist_km = dist_km
             st.session_state.time_min = time_min
             st.session_state.link=link_
+            st.session_state.plan = plan
+            st.session_state.total_visit = total_visit
+            st.session_state.total_time = total_time
+
     # Wyświetlenie zapisanych wyników
     if st.session_state.mapa is not None:
-        st.success(f"✅ Długość trasy: {st.session_state.dist_km:.2f} km")
-        st.info(f"🚶 Szacowany czas pieszy: {st.session_state.time_min/60:.2f} godzin")
-        st.info(f"Link do trasy na mapie: {st.session_state.link}")
+        st.success(f"Długość trasy: {st.session_state.dist_km:.2f} km")
+        st.info(f" Szacowany czas pieszy: {app.h_to_hm(st.session_state.time_min/60)} godzin")
         st_folium(st.session_state.mapa, width=700, height=500)
+        st.subheader("Plan zwiedzania")
+        st.info(f" Szacowany czas zwiedzania: {app.h_to_hm(st.session_state.total_time/60)} godzin")
+        table_data = []
+
+        for i, p in enumerate(st.session_state.plan):
+            table_data.append({
+                "Lp.": i + 1,
+                "Miejsce": p["place"],
+                "Dojście [min]": p["walk_min"],
+                "Zwiedzanie [min]": p["visit_min"],
+                "Start [h]": p["start_h"],
+                "Koniec [h]": p["end_h"] ,
+            })
+
+        st.table(table_data)
+
+        st.info(f"Link do trasy na mapie: {st.session_state.link}")
 else:
     st.warning("Wybierz co najmniej dwa miejsca, aby wyznaczyć trasę.")
